@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Activity, ActivityMarker, DailyRecord } from '@/types';
 import { getActivities, getActivityMarkers, getDailyRecordsForActivity } from '@/lib/activityService';
 
@@ -15,9 +15,12 @@ export default function WeeklyBreadcrumbs({ userId, startDate }: WeeklyBreadcrum
   const [dailyRecords, setDailyRecords] = useState<DailyRecord[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Calculate the end of the week (Saturday)
-  const endDate = new Date(startDate);
-  endDate.setDate(startDate.getDate() + 6);
+  // Memoize endDate to prevent infinite loop
+  const endDate = useMemo(() => {
+    const end = new Date(startDate);
+    end.setDate(startDate.getDate() + 6);
+    return end;
+  }, [startDate]);
 
   useEffect(() => {
     const fetchData = async () => {
