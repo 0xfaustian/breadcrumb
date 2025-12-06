@@ -39,6 +39,8 @@ CREATE TABLE activity_markers (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     activity_id UUID REFERENCES activities(id) ON DELETE CASCADE,
     label VARCHAR(100) NOT NULL,  -- e.g. "5 minutes", "10 pushups"
+    is_default BOOLEAN DEFAULT FALSE,  -- If true, this marker shows by default
+    target INTEGER,  -- Daily target for this marker
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -109,17 +111,25 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzd
 
 ## Updating Existing Database
 
-If you already have the database set up and need to add the schedule column to the activities table:
+If you already have the database set up, run these migrations:
 
 ```sql
 -- Add schedule column to activities table
 ALTER TABLE activities ADD COLUMN IF NOT EXISTS schedule TEXT;
+
+-- Add is_default and target columns to activity_markers table
+ALTER TABLE activity_markers ADD COLUMN IF NOT EXISTS is_default BOOLEAN DEFAULT FALSE;
+ALTER TABLE activity_markers ADD COLUMN IF NOT EXISTS target INTEGER;
 ```
 
-This column stores the activity schedule as a JSON string with the following structure:
+### Column Descriptions:
+
+**activities.schedule** - JSON string storing schedule info:
 - `type`: "daily" | "weekly" | "custom"
 - `daysOfWeek`: number[] (0=Sun, 1=Mon, etc.) - for weekly schedules
 - `customDays`: number - for custom schedules (every N days)
+
+**activity_markers.target** - Daily target number for the marker (e.g., 5 = complete 5 times per day)
 
 ## Troubleshooting
 

@@ -21,6 +21,8 @@ CREATE TABLE activity_markers (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     activity_id UUID REFERENCES activities(id) ON DELETE CASCADE,
     label VARCHAR(100) NOT NULL,  -- e.g. "5 minutes", "10 pushups"
+    is_default BOOLEAN DEFAULT FALSE,  -- If true, this marker shows by default
+    target INTEGER,  -- Daily target for this marker (e.g., 5 times per day)
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 

@@ -47,10 +47,26 @@ export const getActivities = async (userId: string): Promise<Activity[]> => {
 };
 
 // Activity Marker operations
-export const createActivityMarker = async (activityId: string, label: string): Promise<ActivityMarker> => {
+export const createActivityMarker = async (
+  activityId: string, 
+  label: string, 
+  options?: { isDefault?: boolean; target?: number }
+): Promise<ActivityMarker> => {
+  const insertData: { activity_id: string; label: string; is_default?: boolean; target?: number } = { 
+    activity_id: activityId, 
+    label 
+  };
+  
+  if (options?.isDefault !== undefined) {
+    insertData.is_default = options.isDefault;
+  }
+  if (options?.target !== undefined) {
+    insertData.target = options.target;
+  }
+  
   const { data, error } = await supabase
     .from('activity_markers')
-    .insert([{ activity_id: activityId, label }])
+    .insert([insertData])
     .select()
     .single();
   
@@ -60,6 +76,8 @@ export const createActivityMarker = async (activityId: string, label: string): P
     id: data.id,
     activityId: data.activity_id,
     label: data.label,
+    isDefault: data.is_default || false,
+    target: data.target || undefined,
     createdAt: new Date(data.created_at),
   };
 };
@@ -76,8 +94,30 @@ export const getActivityMarkers = async (activityId: string): Promise<ActivityMa
     id: item.id,
     activityId: item.activity_id,
     label: item.label,
+    isDefault: item.is_default || false,
+    target: item.target || undefined,
     createdAt: new Date(item.created_at),
   }));
+};
+
+export const updateMarkerTarget = async (markerId: string, target: number | null): Promise<ActivityMarker> => {
+  const { data, error } = await supabase
+    .from('activity_markers')
+    .update({ target })
+    .eq('id', markerId)
+    .select()
+    .single();
+  
+  if (error) throw error;
+  
+  return {
+    id: data.id,
+    activityId: data.activity_id,
+    label: data.label,
+    isDefault: data.is_default || false,
+    target: data.target || undefined,
+    createdAt: new Date(data.created_at),
+  };
 };
 
 // Helper function to format date as YYYY-MM-DD using local time (not UTC)

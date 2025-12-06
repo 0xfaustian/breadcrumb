@@ -16,6 +16,7 @@ export default function ActivityForm({ userId, onActivityAdded }: ActivityFormPr
   const [isAddingActivity, setIsAddingActivity] = useState(false);
   const [activityId, setActivityId] = useState<string | null>(null);
   const [markerLabel, setMarkerLabel] = useState('');
+  const [markerTarget, setMarkerTarget] = useState<string>(''); // Target for marker (empty = no target)
   const [markers, setMarkers] = useState<ActivityMarker[]>([]);
   
   // Scheduling state
@@ -64,9 +65,16 @@ export default function ActivityForm({ userId, onActivityAdded }: ActivityFormPr
     if (!markerLabel.trim() || !activityId) return;
     
     try {
-      const newMarker = await createActivityMarker(activityId, markerLabel.trim());
+      const isFirstMarker = markers.length === 0;
+      const target = markerTarget ? parseInt(markerTarget, 10) : undefined;
+      
+      const newMarker = await createActivityMarker(activityId, markerLabel.trim(), {
+        isDefault: isFirstMarker, // First marker is default
+        target: target,
+      });
       setMarkers([...markers, newMarker]);
       setMarkerLabel('');
+      setMarkerTarget('');
     } catch (error) {
       console.error('Error creating marker:', error);
     }
@@ -184,15 +192,27 @@ export default function ActivityForm({ userId, onActivityAdded }: ActivityFormPr
         <div className="mt-1 sm:mt-2">
           <h3 className="text-black mb-1 text-sm">Add Markers 🍞</h3>
           
-          <div className="flex gap-1 sm:gap-2 mb-1">
+          <div className="flex gap-1 sm:gap-2 mb-1 flex-wrap">
             <input
               type="text"
               value={markerLabel}
               onChange={(e) => setMarkerLabel(e.target.value)}
               placeholder="Marker label"
-              className="flex-1 px-2 py-1 text-black border-2 border-black text-sm"
+              className="flex-1 min-w-[120px] px-2 py-1 text-black border-2 border-black text-sm"
               style={{ backgroundColor: '#8B4513', color: '#000' }}
             />
+            <div className="flex items-center gap-1">
+              <span className="text-black text-xs">Target:</span>
+              <input
+                type="number"
+                min="1"
+                value={markerTarget}
+                onChange={(e) => setMarkerTarget(e.target.value)}
+                placeholder="∞"
+                className="w-14 px-1 py-1 text-black border-2 border-black text-sm text-center"
+                style={{ backgroundColor: '#8B4513', color: '#000' }}
+              />
+            </div>
             <button
               onClick={handleAddMarker}
               className="px-2 py-1 text-black border-2 border-black text-sm"
@@ -205,10 +225,14 @@ export default function ActivityForm({ userId, onActivityAdded }: ActivityFormPr
           <div className="mt-1">
             <h4 className="text-black mb-0.5 text-sm">Markers:</h4>
             <ul className="space-y-0.5">
-              {markers.map((marker) => (
-                <li key={marker.id} className="flex items-center text-black text-sm">
-                  <span className="mr-1">🍞</span>
-                  {marker.label}
+              {markers.map((marker, index) => (
+                <li key={marker.id} className="flex items-center text-black text-sm gap-1">
+                  <span>🍞</span>
+                  <span>{marker.label}</span>
+                  {marker.target && (
+                    <span className="text-xs opacity-75">(target: {marker.target})</span>
+                  )}
+                  {index === 0 && <span className="text-xs opacity-75">[default]</span>}
                 </li>
               ))}
             </ul>

@@ -4,7 +4,7 @@ import { useUser } from '@/context/userContext';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { Activity, ActivityMarker, DailyRecord } from '@/types';
-import { getActivities, getActivityMarkers, getDailyRecords, createActivityMarker, createDailyRecord, updateDailyRecord, deleteDailyRecord } from '@/lib/activityService';
+import { getActivities, getActivityMarkers, getDailyRecords, createActivityMarker, createDailyRecord, updateDailyRecord, deleteDailyRecord, updateMarkerTarget } from '@/lib/activityService';
 import { useSearchParams } from 'next/navigation';
 
 export default function ActivityView() {
@@ -21,6 +21,8 @@ export default function ActivityView() {
   const [checkboxCounts, setCheckboxCounts] = useState<Record<string, number>>({});
   const [visibleMarkers, setVisibleMarkers] = useState<Set<string>>(new Set());
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [editingTarget, setEditingTarget] = useState<string | null>(null); // markerId being edited
+  const [targetInput, setTargetInput] = useState<string>('');
 
   // Load visible markers from localStorage for the selected date
   // By default, only the first marker is visible
@@ -262,6 +264,19 @@ export default function ActivityView() {
     );
   };
 
+  const handleSetTarget = async (markerId: string) => {
+    const target = targetInput ? parseInt(targetInput, 10) : null;
+    
+    try {
+      const updatedMarker = await updateMarkerTarget(markerId, target);
+      setMarkers(markers.map(m => m.id === markerId ? updatedMarker : m));
+      setEditingTarget(null);
+      setTargetInput('');
+    } catch (error) {
+      console.error('Error updating target:', error);
+    }
+  };
+
   if (!user) {
     return null;
   }
@@ -452,8 +467,59 @@ export default function ActivityView() {
                 return (
                   <div key={marker.id} className="p-1 border-2 border-black" style={{ backgroundColor: '#8B4513' }}>
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-1 gap-1">
-                      <span className="text-black font-bold text-sm">{marker.label}</span>
+                      <div className="flex items-center gap-1">
+                        <span className="text-black font-bold text-sm">{marker.label}</span>
+                        {marker.target && (
+                          <span 
+                            className={`text-xs px-1 border border-black ${completedCount >= marker.target ? 'bg-green-800' : ''}`}
+                            style={{ backgroundColor: completedCount >= marker.target ? '#228B22' : '#5D2E0A' }}
+                          >
+                            {completedCount}/{marker.target} ✓
+                          </span>
+                        )}
+                      </div>
                       <div className="flex items-center gap-0.5 flex-wrap">
+                        {/* Target editing */}
+                        {editingTarget === marker.id ? (
+                          <div className="flex items-center gap-0.5 mr-1">
+                            <input
+                              type="number"
+                              min="1"
+                              value={targetInput}
+                              onChange={(e) => setTargetInput(e.target.value)}
+                              placeholder={marker.target?.toString() || '∞'}
+                              className="w-10 px-1 py-0.5 text-black border border-black text-xs text-center"
+                              style={{ backgroundColor: '#8B4513' }}
+                              autoFocus
+                            />
+                            <button
+                              onClick={() => handleSetTarget(marker.id)}
+                              className="px-1 py-0.5 text-black border border-black text-xs"
+                              style={{ backgroundColor: '#228B22' }}
+                            >
+                              ✓
+                            </button>
+                            <button
+                              onClick={() => { setEditingTarget(null); setTargetInput(''); }}
+                              className="px-1 py-0.5 text-black border border-black text-xs"
+                              style={{ backgroundColor: '#8B0000' }}
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => { 
+                              setEditingTarget(marker.id); 
+                              setTargetInput(marker.target?.toString() || ''); 
+                            }}
+                            className="px-1 py-0.5 text-black border border-black text-xs mr-1"
+                            style={{ backgroundColor: '#5D2E0A' }}
+                            title="Set daily target"
+                          >
+                            🎯
+                          </button>
+                        )}
                         <span className="text-black text-xs sm:text-sm mr-1">{completedCount}/{checkboxCount}</span>
                         <button
                           onClick={() => handleAddCheckboxes(marker.id, -5)}

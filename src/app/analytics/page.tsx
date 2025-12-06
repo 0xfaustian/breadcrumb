@@ -74,7 +74,14 @@ export default function Analytics() {
 
   // Calculate statistics based on the current view type
   const calculateStats = () => {
-    const stats: Record<string, { total: number; completed: number; percentage: number }> = {};
+    const stats: Record<string, { 
+      total: number; 
+      completed: number; 
+      percentage: number;
+      targetMet: number; // Days where target was met
+      totalDays: number; // Total days with activity
+      markers: { id: string; label: string; target?: number; completions: number; targetMet: number }[]
+    }> = {};
     
     activities.forEach(activity => {
       const activityRecords = dailyRecords.filter(
@@ -85,10 +92,59 @@ export default function Analytics() {
       const completedRecords = activityRecords.filter(record => record.completed).length;
       const percentage = totalMarkers > 0 ? Math.round((completedRecords / totalMarkers) * 100) : 0;
       
+      // Calculate per-marker stats including target progress
+      const markerStats = (activityMarkers[activity.id] || []).map(marker => {
+        const markerRecords = activityRecords.filter(r => r.activityMarkerId === marker.id && r.completed);
+        
+        // Group by date to count completions per day
+        const completionsByDate: Record<string, number> = {};
+        markerRecords.forEach(r => {
+          const dateKey = r.dateString;
+          completionsByDate[dateKey] = (completionsByDate[dateKey] || 0) + 1;
+        });
+        
+        // Count days where target was met
+        let targetMetDays = 0;
+        if (marker.target) {
+          targetMetDays = Object.values(completionsByDate).filter(count => count >= marker.target!).length;
+        }
+        
+        return {
+          id: marker.id,
+          label: marker.label,
+          target: marker.target,
+          completions: markerRecords.length,
+          targetMet: targetMetDays
+        };
+      });
+      
+      // Overall target met days (any marker that has a target and was met)
+      const daysWithTarget = new Set<string>();
+      const daysTargetMet = new Set<string>();
+      
+      (activityMarkers[activity.id] || []).forEach(marker => {
+        if (marker.target) {
+          const markerRecords = activityRecords.filter(r => r.activityMarkerId === marker.id && r.completed);
+          const completionsByDate: Record<string, number> = {};
+          markerRecords.forEach(r => {
+            completionsByDate[r.dateString] = (completionsByDate[r.dateString] || 0) + 1;
+            daysWithTarget.add(r.dateString);
+          });
+          Object.entries(completionsByDate).forEach(([date, count]) => {
+            if (count >= marker.target!) {
+              daysTargetMet.add(date);
+            }
+          });
+        }
+      });
+      
       stats[activity.id] = {
         total: totalMarkers,
         completed: completedRecords,
-        percentage
+        percentage,
+        targetMet: daysTargetMet.size,
+        totalDays: daysWithTarget.size,
+        markers: markerStats
       };
     });
     
@@ -226,37 +282,58 @@ export default function Analytics() {
               {activities.length === 0 ? (
                 <p className="text-black">No activities. Create activities to see analytics.</p>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="min-w-full border-2 border-black">
-                    <thead>
-                      <tr style={{ backgroundColor: '#5D2E0A' }}>
-                        <th className="px-2 py-1 text-left text-black border border-black">Activity</th>
-                        <th className="px-2 py-1 text-left text-black border border-black">Markers</th>
-                        <th className="px-2 py-1 text-left text-black border border-black">Completed</th>
-                        <th className="px-2 py-1 text-left text-black border border-black">Progress</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {activities.map(activity => (
-                        <tr key={activity.id}>
-                          <td className="px-2 py-1 text-black border border-black" style={{ backgroundColor: '#8B4513' }}>{activity.name}</td>
-                          <td className="px-2 py-1 text-black border border-black" style={{ backgroundColor: '#8B4513' }}>{stats[activity.id]?.total || 0}</td>
-                          <td className="px-2 py-1 text-black border border-black" style={{ backgroundColor: '#8B4513' }}>{stats[activity.id]?.completed || 0}</td>
-                          <td className="px-2 py-1 text-black border border-black" style={{ backgroundColor: '#8B4513' }}>
-                            <div className="text-black">
-                              {stats[activity.id]?.percentage || 0}%
+                <div className="space-y-2">
+                  {activities.map(activity => {
+                    const activityStats = stats[activity.id];
+                    const hasTargets = activityStats?.markers.some(m => m.target);
+                    
+                    return (
+                      <div key={activity.id} className="border-2 border-black p-2" style={{ backgroundColor: '#8B4513' }}>
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="text-black font-bold">{activity.name}</span>
+                          <span className="text-black text-sm">{activityStats?.completed || 0} completions</span>
+                        </div>
+                        
+                        {/* Show marker-level stats with targets */}
+                        {activityStats?.markers.length > 0 && (
+                          <div className="space-y-1">
+                            {activityStats.markers.map(marker => (
+                              <div key={marker.id} className="flex items-center gap-2 text-sm">
+                                <span className="text-black">{marker.label}:</span>
+                                <span className="text-black">{marker.completions}x</span>
+                                {marker.target && (
+                                  <span 
+                                    className="px-1 border border-black text-xs"
+                                    style={{ backgroundColor: marker.targetMet > 0 ? '#228B22' : '#5D2E0A' }}
+                                  >
+                                    🎯 {marker.targetMet} days hit target ({marker.target}/day)
+                                  </span>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        
+                        {/* Target summary if there are targets */}
+                        {hasTargets && activityStats.totalDays > 0 && (
+                          <div className="mt-1 pt-1 border-t border-black">
+                            <div className="flex items-center gap-2">
+                              <span className="text-black text-sm">Target Success Rate:</span>
+                              <span 
+                                className="px-1 border border-black text-sm font-bold"
+                                style={{ backgroundColor: activityStats.targetMet > 0 ? '#228B22' : '#8B0000' }}
+                              >
+                                {Math.round((activityStats.targetMet / activityStats.totalDays) * 100)}%
+                              </span>
+                              <span className="text-black text-xs">
+                                ({activityStats.targetMet}/{activityStats.totalDays} days)
+                              </span>
                             </div>
-                            <div className="mt-1 w-full border-2 border-black h-2" style={{ backgroundColor: '#A0522D' }}>
-                              <div 
-                                className="h-2 border-r-2 border-black" 
-                                style={{ width: `${stats[activity.id]?.percentage || 0}%`, backgroundColor: '#000' }}
-                              ></div>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>

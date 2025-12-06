@@ -26,6 +26,7 @@ export interface ActivityMarker {
   activityId: string;
   label: string;
   isDefault?: boolean; // If true, this marker shows by default
+  target?: number; // Daily target for this marker (e.g., 5 times per day)
   createdAt: Date;
 }
 
