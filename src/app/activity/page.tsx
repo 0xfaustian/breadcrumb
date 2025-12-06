@@ -157,12 +157,14 @@ export default function ActivityView() {
         setDailyRecords(records);
       } else {
         // Checkbox is unchecked, create a new record
-        await createDailyRecord(user.id, markerId, selectedDate, true);
+        // Pass the current target so it's preserved even if target changes later
+        const marker = markers.find(m => m.id === markerId);
+        await createDailyRecord(user.id, markerId, selectedDate, true, marker?.target);
         
         // Refresh records
         const records = await getDailyRecords(user.id, selectedDate);
         setDailyRecords(records);
-      }
+        }
     } catch (error) {
       console.error('Error toggling checkbox:', error);
       alert(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -372,21 +374,21 @@ export default function ActivityView() {
       <main className="px-1 py-1">
         <div className="flex items-center justify-between mb-1 flex-wrap gap-1">
           <h2 className="text-sm sm:text-lg text-black">{activity.name} 🍞</h2>
-          <a
-            href="/dashboard"
+            <a
+              href="/dashboard"
             className="px-2 py-1 text-black border-2 border-black text-sm"
             style={{ backgroundColor: '#A0522D' }}
-          >
+            >
             Back
-          </a>
-        </div>
+            </a>
+          </div>
 
         <div className="mb-1">
           <label htmlFor="date-picker" className="block text-black mb-0.5 text-sm">Date:</label>
-          <input
-            type="date"
-            id="date-picker"
-            value={selectedDate.toISOString().split('T')[0]}
+            <input
+              type="date"
+              id="date-picker"
+              value={selectedDate.toISOString().split('T')[0]}
             onChange={(e) => {
               // Parse as local date to avoid timezone issues
               const [year, month, day] = e.target.value.split('-').map(Number);
@@ -394,8 +396,8 @@ export default function ActivityView() {
             }}
             className="px-2 py-1 text-black border-2 border-black text-sm"
             style={{ backgroundColor: '#A0522D' }}
-          />
-        </div>
+            />
+          </div>
 
         <div className="mb-1 p-1 border-2 border-black relative" style={{ backgroundColor: '#A0522D' }}>
           <h3 className="text-black mb-0.5 text-sm">Add Marker 🍞</h3>
@@ -418,7 +420,7 @@ export default function ActivityView() {
                   style={{ backgroundColor: '#8B4513' }}
                 >
                   {getSuggestions().map(marker => (
-                    <button
+              <button
                       key={marker.id}
                       onMouseDown={(e) => {
                         e.preventDefault();
@@ -428,7 +430,7 @@ export default function ActivityView() {
                       style={{ backgroundColor: '#A0522D' }}
                     >
                       {marker.label}
-                    </button>
+              </button>
                   ))}
                 </div>
               )}
@@ -447,14 +449,14 @@ export default function ActivityView() {
               {markers.filter(m => !visibleMarkers.has(m.id)).length} more marker{markers.filter(m => !visibleMarkers.has(m.id)).length > 1 ? 's' : ''} available
             </p>
           )}
-        </div>
+          </div>
 
         <div className="p-1 border-2 border-black" style={{ backgroundColor: '#A0522D' }}>
           <h3 className="text-black mb-1">
             {selectedDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} 🍞
-          </h3>
-          
-          {markers.length === 0 ? (
+            </h3>
+            
+            {markers.length === 0 ? (
             <p className="text-black text-sm">No markers. Create a new marker above to start tracking.</p>
           ) : markers.filter(m => visibleMarkers.has(m.id)).length === 0 ? (
             <p className="text-black text-sm">No markers for today. Type above to add existing markers or create new ones.</p>
@@ -463,8 +465,8 @@ export default function ActivityView() {
               {markers.filter(m => visibleMarkers.has(m.id)).map(marker => {
                 const checkboxCount = checkboxCounts[marker.id] || 10;
                 const completedCount = getCheckedCount(marker.id);
-                
-                return (
+                  
+                  return (
                   <div key={marker.id} className="p-1 border-2 border-black" style={{ backgroundColor: '#8B4513' }}>
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-1 gap-1">
                       <div className="flex items-center gap-1">
@@ -499,13 +501,13 @@ export default function ActivityView() {
                             >
                               ✓
                             </button>
-                            <button
+                              <button
                               onClick={() => { setEditingTarget(null); setTargetInput(''); }}
                               className="px-1 py-0.5 text-black border border-black text-xs"
                               style={{ backgroundColor: '#8B0000' }}
-                            >
+                              >
                               ✕
-                            </button>
+                              </button>
                           </div>
                         ) : (
                           <button
@@ -567,8 +569,8 @@ export default function ActivityView() {
                           ✕
                         </button>
                       </div>
-                    </div>
-                    
+                      </div>
+                      
                     {/* Row of checkboxes */}
                     <div className="flex flex-wrap gap-1">
                       {Array.from({ length: checkboxCount }, (_, index) => {
@@ -583,10 +585,10 @@ export default function ActivityView() {
                               handleCheckboxToggle(marker.id, index);
                             }}
                           >
-                            <input
-                              type="checkbox"
+                          <input
+                            type="checkbox"
                               checked={checked}
-                              readOnly
+                            readOnly
                               style={{ 
                                 backgroundColor: checked ? '#000' : '#A0522D',
                                 pointerEvents: 'none'
@@ -595,12 +597,12 @@ export default function ActivityView() {
                           </label>
                         );
                       })}
+                        </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+                  );
+                })}
+              </div>
+            )}
           
           {/* Show all markers button */}
           {markers.length > visibleMarkers.size && (
@@ -617,7 +619,7 @@ export default function ActivityView() {
               >
                 Show All ({markers.length - visibleMarkers.size} more)
               </button>
-            </div>
+          </div>
           )}
         </div>
       </main>

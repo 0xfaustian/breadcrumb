@@ -37,6 +37,7 @@ export interface DailyRecord {
   dateString: string; // YYYY-MM-DD format for easy comparison
   date: Date;
   completed: boolean;
+  target?: number; // Target at time of completion (preserved for historical accuracy)
   completedAt?: Date;
   createdAt: Date;
 }

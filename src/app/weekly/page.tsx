@@ -86,35 +86,35 @@ export default function WeeklyView() {
       <main className="px-1 sm:px-2 py-1 sm:py-2">
         <div className="mb-1 sm:mb-2 flex flex-wrap items-center justify-between gap-1">
           <h2 className="text-sm sm:text-xl text-black">Weekly 🍞</h2>
-          
+            
           <div className="flex items-center gap-1">
-            <button
-              onClick={goToPreviousWeek}
+              <button
+                onClick={goToPreviousWeek}
               className="px-2 py-1 text-black border-2 border-black text-xs sm:text-sm"
               style={{ backgroundColor: '#5D2E0A' }}
-            >
+              >
               &larr; Prev
-            </button>
-            
-            <button
-              onClick={goToCurrentWeek}
+              </button>
+              
+              <button
+                onClick={goToCurrentWeek}
               className="px-2 py-1 text-black border-2 border-black text-xs sm:text-sm"
               style={{ backgroundColor: '#A0522D' }}
-            >
+              >
               Now
-            </button>
-            
-            <button
-              onClick={goToNextWeek}
+              </button>
+              
+              <button
+                onClick={goToNextWeek}
               className="px-2 py-1 text-black border-2 border-black text-xs sm:text-sm"
               style={{ backgroundColor: '#5D2E0A' }}
-            >
+              >
               Next &rarr;
-            </button>
+              </button>
+            </div>
           </div>
-        </div>
 
-        <WeeklyBreadcrumbs userId={user.id} startDate={selectedWeekStart} />
+          <WeeklyBreadcrumbs userId={user.id} startDate={selectedWeekStart} />
       </main>
     </div>
   );

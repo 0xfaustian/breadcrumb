@@ -44,21 +44,21 @@ export default function Login() {
           </p>
         </div>
         <form className="space-y-3" onSubmit={handleSubmit}>
-          <div>
-            <label htmlFor="username" className="sr-only">
-              Username
-            </label>
-            <input
-              id="username"
-              name="username"
-              type="text"
-              required
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
+            <div>
+              <label htmlFor="username" className="sr-only">
+                Username
+              </label>
+              <input
+                id="username"
+                name="username"
+                type="text"
+                required
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
               className="w-full px-3 py-2 text-black border-2 border-black"
               style={{ backgroundColor: '#A0522D', color: '#000' }}
-              placeholder="Username"
-            />
+                placeholder="Username"
+              />
           </div>
 
           {error && (

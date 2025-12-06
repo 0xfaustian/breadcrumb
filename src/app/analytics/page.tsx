@@ -79,8 +79,16 @@ export default function Analytics() {
       completed: number; 
       percentage: number;
       targetMet: number; // Days where target was met
-      totalDays: number; // Total days with activity
-      markers: { id: string; label: string; target?: number; completions: number; targetMet: number }[]
+      totalDays: number; // Total days with activity (that have targets)
+      allActiveDays: number; // All days with any activity
+      markers: { 
+        id: string; 
+        label: string; 
+        target?: number; 
+        completions: number; 
+        targetMet: number;
+        dailyPercentages: { date: string; percentage: number; completions: number; target?: number }[];
+      }[]
     }> = {};
     
     activities.forEach(activity => {
@@ -88,62 +96,111 @@ export default function Analytics() {
         record => activityMarkers[activity.id]?.some(marker => marker.id === record.activityMarkerId)
       );
       
-      const totalMarkers = activityMarkers[activity.id]?.length || 0;
-      const completedRecords = activityRecords.filter(record => record.completed).length;
-      const percentage = totalMarkers > 0 ? Math.round((completedRecords / totalMarkers) * 100) : 0;
-      
       // Calculate per-marker stats including target progress
       const markerStats = (activityMarkers[activity.id] || []).map(marker => {
         const markerRecords = activityRecords.filter(r => r.activityMarkerId === marker.id && r.completed);
         
-        // Group by date to count completions per day
-        const completionsByDate: Record<string, number> = {};
+        // Group by date to count completions and get target for that day
+        // Use the target stored on the record (historical) if available, otherwise use current marker target
+        const completionsByDate: Record<string, { count: number; target?: number }> = {};
         markerRecords.forEach(r => {
           const dateKey = r.dateString;
-          completionsByDate[dateKey] = (completionsByDate[dateKey] || 0) + 1;
+          if (!completionsByDate[dateKey]) {
+            // Use record's target (preserved from when it was created) or fall back to current marker target
+            completionsByDate[dateKey] = { 
+              count: 0, 
+              target: r.target !== undefined ? r.target : marker.target 
+            };
+          }
+          completionsByDate[dateKey].count++;
         });
         
-        // Count days where target was met
+        // Count days where target was met and calculate daily percentages
         let targetMetDays = 0;
-        if (marker.target) {
-          targetMetDays = Object.values(completionsByDate).filter(count => count >= marker.target!).length;
-        }
+        const dailyPercentages: { date: string; percentage: number; completions: number; target?: number }[] = [];
+        
+        Object.entries(completionsByDate).forEach(([date, data]) => {
+          const dayTarget = data.target;
+          if (dayTarget) {
+            const pct = Math.round((data.count / dayTarget) * 100);
+            dailyPercentages.push({ date, percentage: pct, completions: data.count, target: dayTarget });
+            if (data.count >= dayTarget) {
+              targetMetDays++;
+            }
+          }
+        });
         
         return {
           id: marker.id,
           label: marker.label,
-          target: marker.target,
+          target: marker.target, // Current target for display
           completions: markerRecords.length,
-          targetMet: targetMetDays
+          targetMet: targetMetDays,
+          dailyPercentages
         };
       });
       
-      // Overall target met days (any marker that has a target and was met)
-      const daysWithTarget = new Set<string>();
-      const daysTargetMet = new Set<string>();
+      // Overall target met days - a day counts as "met" if ALL markers with targets hit their targets
+      const allDates = new Set<string>();
+      const dayTargetStatus: Record<string, { met: number; total: number }> = {};
       
       (activityMarkers[activity.id] || []).forEach(marker => {
-        if (marker.target) {
-          const markerRecords = activityRecords.filter(r => r.activityMarkerId === marker.id && r.completed);
-          const completionsByDate: Record<string, number> = {};
-          markerRecords.forEach(r => {
-            completionsByDate[r.dateString] = (completionsByDate[r.dateString] || 0) + 1;
-            daysWithTarget.add(r.dateString);
-          });
-          Object.entries(completionsByDate).forEach(([date, count]) => {
-            if (count >= marker.target!) {
-              daysTargetMet.add(date);
+        const markerRecords = activityRecords.filter(r => r.activityMarkerId === marker.id && r.completed);
+        
+        // Group by date with stored target info
+        const completionsByDate: Record<string, { count: number; target?: number }> = {};
+        markerRecords.forEach(r => {
+          if (!completionsByDate[r.dateString]) {
+            // Use record's target (preserved from when it was created) or fall back to current marker target
+            completionsByDate[r.dateString] = { 
+              count: 0, 
+              target: r.target !== undefined ? r.target : marker.target 
+            };
+          }
+          completionsByDate[r.dateString].count++;
+          allDates.add(r.dateString);
+        });
+        
+        // For each date this marker was used, track if target was met
+        Object.entries(completionsByDate).forEach(([date, data]) => {
+          if (data.target) { // Only count if there's a target
+            if (!dayTargetStatus[date]) {
+              dayTargetStatus[date] = { met: 0, total: 0 };
             }
-          });
+            dayTargetStatus[date].total++;
+            if (data.count >= data.target) {
+              dayTargetStatus[date].met++;
+            }
+          }
+        });
+      });
+      
+      // Count days where ALL markers with targets were met
+      const daysTargetMet = Object.values(dayTargetStatus).filter(s => s.met === s.total && s.total > 0).length;
+      
+      // Calculate overall percentage based on targets
+      let totalTargetSum = 0;
+      let totalCompletions = 0;
+      markerStats.forEach(m => {
+        if (m.target) {
+          totalCompletions += m.completions;
+          // Target sum = target * number of days marker was used
+          totalTargetSum += m.target * m.dailyPercentages.length;
         }
       });
       
+      const percentage = totalTargetSum > 0 ? Math.round((totalCompletions / totalTargetSum) * 100) : 0;
+      
+      // Count ALL active days for this activity (not just with targets)
+      const allActiveDays = new Set(activityRecords.map(r => r.dateString)).size;
+      
       stats[activity.id] = {
-        total: totalMarkers,
-        completed: completedRecords,
+        total: activityMarkers[activity.id]?.length || 0,
+        completed: activityRecords.filter(r => r.completed).length,
         percentage,
-        targetMet: daysTargetMet.size,
-        totalDays: daysWithTarget.size,
+        targetMet: daysTargetMet,
+        totalDays: allDates.size,
+        allActiveDays,
         markers: markerStats
       };
     });
@@ -153,8 +210,19 @@ export default function Analytics() {
 
   const stats = calculateStats();
 
-  // Get unique dates for the current view
-  const uniqueDates = Array.from(new Set(dailyRecords.map(record => record.date.toDateString()))).length;
+  // Get unique dates for the current view - using dateString for consistency
+  const uniqueDates = new Set(dailyRecords.map(record => record.dateString)).size;
+  
+  // Get unique dates with target activity only
+  const datesWithTargets = new Set<string>();
+  Object.values(stats).forEach(s => {
+    s.markers.forEach(m => {
+      if (m.target) {
+        m.dailyPercentages.forEach(d => datesWithTargets.add(d.date));
+      }
+    });
+  });
+  const uniqueDatesWithTargets = datesWithTargets.size;
 
   if (!user) {
     return null;
@@ -191,97 +259,114 @@ export default function Analytics() {
       <main className="px-1 sm:px-2 py-1 sm:py-2">
         <div className="flex flex-wrap items-center justify-between gap-1 mb-1 sm:mb-2">
           <h2 className="text-sm sm:text-xl text-black">Analytics 🍞</h2>
-          
+            
           <div className="flex flex-wrap gap-1">
-            <div className="flex items-center">
+              <div className="flex items-center">
               <label htmlFor="view-type" className="mr-1 text-black text-xs sm:text-sm">View:</label>
-              <select
-                id="view-type"
-                value={viewType}
-                onChange={(e) => setViewType(e.target.value as 'monthly' | 'yearly' | 'alltime')}
+                <select
+                  id="view-type"
+                  value={viewType}
+                  onChange={(e) => setViewType(e.target.value as 'monthly' | 'yearly' | 'alltime')}
                 className="px-2 py-1 text-black border-2 border-black text-xs sm:text-sm"
                 style={{ backgroundColor: '#A0522D' }}
-              >
-                <option value="monthly">Monthly</option>
-                <option value="yearly">Yearly</option>
-                <option value="alltime">All Time</option>
-              </select>
-            </div>
-
-            {viewType === 'monthly' && (
-              <div className="flex items-center">
-                <label htmlFor="month-select" className="mr-1 text-black">Month:</label>
-                <input
-                  type="month"
-                  id="month-select"
-                  value={selectedMonth}
-                  onChange={(e) => setSelectedMonth(e.target.value)}
-                  className="px-2 py-1 text-black border-2 border-black"
-                  style={{ backgroundColor: '#A0522D' }}
-                />
-              </div>
-            )}
-
-            {viewType === 'yearly' && (
-              <div className="flex items-center">
-                <label htmlFor="year-select" className="mr-1 text-black">Year:</label>
-                <select
-                  id="year-select"
-                  value={selectedYear}
-                  onChange={(e) => setSelectedYear(e.target.value)}
-                  className="px-2 py-1 text-black border-2 border-black"
-                  style={{ backgroundColor: '#A0522D' }}
                 >
-                  {Array.from({ length: 10 }, (_, i) => {
-                    const year = new Date().getFullYear() - 5 + i;
-                    return (
-                      <option key={year} value={year.toString()}>
-                        {year}
-                      </option>
-                    );
-                  })}
+                  <option value="monthly">Monthly</option>
+                  <option value="yearly">Yearly</option>
+                  <option value="alltime">All Time</option>
                 </select>
               </div>
-            )}
-          </div>
-        </div>
 
-        {loading ? (
+              {viewType === 'monthly' && (
+                <div className="flex items-center">
+                <label htmlFor="month-select" className="mr-1 text-black">Month:</label>
+                  <input
+                    type="month"
+                    id="month-select"
+                    value={selectedMonth}
+                    onChange={(e) => setSelectedMonth(e.target.value)}
+                  className="px-2 py-1 text-black border-2 border-black"
+                  style={{ backgroundColor: '#A0522D' }}
+                  />
+                </div>
+              )}
+
+              {viewType === 'yearly' && (
+                <div className="flex items-center">
+                <label htmlFor="year-select" className="mr-1 text-black">Year:</label>
+                  <select
+                    id="year-select"
+                    value={selectedYear}
+                    onChange={(e) => setSelectedYear(e.target.value)}
+                  className="px-2 py-1 text-black border-2 border-black"
+                  style={{ backgroundColor: '#A0522D' }}
+                  >
+                    {Array.from({ length: 10 }, (_, i) => {
+                      const year = new Date().getFullYear() - 5 + i;
+                      return (
+                        <option key={year} value={year.toString()}>
+                          {year}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {loading ? (
           <div className="text-black py-2">Loading...</div>
-        ) : (
-          <>
-            {/* Summary Cards */}
+          ) : (
+            <>
+              {/* Summary Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-2">
               <div className="p-2 border-2 border-black" style={{ backgroundColor: '#A0522D' }}>
                 <h3 className="text-black mb-1">Active Days</h3>
-                <p className="text-2xl text-black font-bold">{uniqueDates}</p>
-                <p className="text-sm text-black">Days with activity</p>
-              </div>
-              
+                <p className="text-2xl text-black font-bold">
+                  {uniqueDatesWithTargets > 0 ? uniqueDatesWithTargets : uniqueDates}
+                </p>
+                <p className="text-sm text-black">
+                  {uniqueDatesWithTargets > 0 && uniqueDatesWithTargets !== uniqueDates 
+                    ? `${uniqueDatesWithTargets} with targets (${uniqueDates} total)`
+                    : 'Days with activity'}
+                </p>
+                </div>
+                
               <div className="p-2 border-2 border-black" style={{ backgroundColor: '#A0522D' }}>
                 <h3 className="text-black mb-1">Activities</h3>
                 <p className="text-2xl text-black font-bold">{activities.length}</p>
                 <p className="text-sm text-black">Activity types</p>
-              </div>
-              
+                </div>
+                
               <div className="p-2 border-2 border-black" style={{ backgroundColor: '#A0522D' }}>
-                <h3 className="text-black mb-1">Completion</h3>
+                <h3 className="text-black mb-1">Target Completion</h3>
                 <p className="text-2xl text-black font-bold">
-                  {dailyRecords.length > 0 
-                    ? Math.round((dailyRecords.filter(r => r.completed).length / dailyRecords.length) * 100) 
-                    : 0}%
-                </p>
-                <p className="text-sm text-black">Of all markers</p>
+                    {(() => {
+                      // Calculate overall target percentage across all activities
+                      let totalTargetSum = 0;
+                      let totalCompletions = 0;
+                      Object.values(stats).forEach(s => {
+                        s.markers.forEach(m => {
+                          if (m.target) {
+                            totalCompletions += m.completions;
+                            totalTargetSum += m.target * m.dailyPercentages.length;
+                          }
+                        });
+                      });
+                      return totalTargetSum > 0 ? Math.round((totalCompletions / totalTargetSum) * 100) : 0;
+                    })()}%
+                  </p>
+                <p className="text-sm text-black">Of daily targets</p>
+                </div>
               </div>
-            </div>
 
-            {/* Activity Stats */}
+              {/* Activity Stats */}
             <div className="p-2 border-2 border-black mb-2" style={{ backgroundColor: '#A0522D' }}>
               <h3 className="text-black mb-2">Activity Overview 🍞</h3>
-              
-              {activities.length === 0 ? (
+                
+                {activities.length === 0 ? (
                 <p className="text-black">No activities. Create activities to see analytics.</p>
-              ) : (
+                ) : (
                 <div className="space-y-2">
                   {activities.map(activity => {
                     const activityStats = stats[activity.id];
@@ -292,61 +377,96 @@ export default function Analytics() {
                         <div className="flex justify-between items-center mb-1">
                           <span className="text-black font-bold">{activity.name}</span>
                           <span className="text-black text-sm">{activityStats?.completed || 0} completions</span>
-                        </div>
+                              </div>
                         
                         {/* Show marker-level stats with targets */}
                         {activityStats?.markers.length > 0 && (
                           <div className="space-y-1">
-                            {activityStats.markers.map(marker => (
-                              <div key={marker.id} className="flex items-center gap-2 text-sm">
-                                <span className="text-black">{marker.label}:</span>
-                                <span className="text-black">{marker.completions}x</span>
-                                {marker.target && (
-                                  <span 
-                                    className="px-1 border border-black text-xs"
-                                    style={{ backgroundColor: marker.targetMet > 0 ? '#228B22' : '#5D2E0A' }}
-                                  >
-                                    🎯 {marker.targetMet} days hit target ({marker.target}/day)
-                                  </span>
-                                )}
-                              </div>
-                            ))}
+                            {activityStats.markers.map(marker => {
+                              // Calculate average daily percentage for this marker
+                              const avgPct = marker.dailyPercentages.length > 0
+                                ? Math.round(marker.dailyPercentages.reduce((sum, d) => sum + d.percentage, 0) / marker.dailyPercentages.length)
+                                : 0;
+                              
+                              return (
+                                <div key={marker.id} className="flex flex-wrap items-center gap-2 text-sm">
+                                  <span className="text-black">{marker.label}:</span>
+                                  <span className="text-black">{marker.completions}x</span>
+                                  {marker.target && (
+                                    <>
+                                      <span 
+                                        className="px-1 border border-black text-xs"
+                                        style={{ backgroundColor: marker.targetMet > 0 ? '#228B22' : '#5D2E0A' }}
+                                      >
+                                        🎯 {marker.targetMet} days hit target ({marker.target}/day)
+                                      </span>
+                                      {avgPct > 0 && (
+                                        <span 
+                                          className="px-1 border border-black text-xs"
+                                          style={{ backgroundColor: avgPct >= 100 ? '#228B22' : '#A0522D' }}
+                                        >
+                                          avg: {avgPct}%
+                                        </span>
+                                      )}
+                                    </>
+                                  )}
+                                </div>
+                              );
+                            })}
                           </div>
                         )}
                         
-                        {/* Target summary if there are targets */}
+                        {/* Show daily breakdown for markers with targets */}
                         {hasTargets && activityStats.totalDays > 0 && (
                           <div className="mt-1 pt-1 border-t border-black">
-                            <div className="flex items-center gap-2">
-                              <span className="text-black text-sm">Target Success Rate:</span>
+                            <div className="flex flex-wrap items-center gap-2 mb-1">
+                              <span className="text-black text-sm">Days at 100%+:</span>
                               <span 
                                 className="px-1 border border-black text-sm font-bold"
                                 style={{ backgroundColor: activityStats.targetMet > 0 ? '#228B22' : '#8B0000' }}
                               >
-                                {Math.round((activityStats.targetMet / activityStats.totalDays) * 100)}%
+                                {activityStats.targetMet}/{activityStats.totalDays}
                               </span>
                               <span className="text-black text-xs">
-                                ({activityStats.targetMet}/{activityStats.totalDays} days)
+                                ({Math.round((activityStats.targetMet / activityStats.totalDays) * 100)}% of active days)
                               </span>
+                            </div>
+                            
+                            {/* Daily breakdown showing percentages including over 100% */}
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {activityStats.markers
+                                .filter(m => m.target && m.dailyPercentages.length > 0)
+                                .flatMap(m => m.dailyPercentages.map(d => ({ ...d, marker: m.label, target: m.target })))
+                                .sort((a, b) => b.date.localeCompare(a.date))
+                                .slice(0, 7)
+                                .map((day, i) => (
+                                  <div 
+                                    key={i}
+                                    className="px-1 border border-black text-xs"
+                                    style={{ backgroundColor: day.percentage >= 100 ? '#228B22' : '#A0522D' }}
+                                  >
+                                    {day.date.slice(5)}: {day.percentage}%
+                                  </div>
+                                ))}
                             </div>
                           </div>
                         )}
                       </div>
                     );
                   })}
-                </div>
-              )}
-            </div>
+                  </div>
+                )}
+              </div>
 
-            {/* Chart Placeholder */}
+              {/* Chart Placeholder */}
             <div className="p-2 border-2 border-black" style={{ backgroundColor: '#A0522D' }}>
               <h3 className="text-black mb-2">Trends 🍞</h3>
               <div className="h-32 flex items-center justify-center border-2 border-black" style={{ backgroundColor: '#8B4513' }}>
                 <p className="text-black">Trend visualization coming soon</p>
+                </div>
               </div>
-            </div>
-          </>
-        )}
+            </>
+          )}
       </main>
     </div>
   );

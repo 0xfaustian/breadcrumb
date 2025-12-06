@@ -18,7 +18,7 @@ export default function ActivityForm({ userId, onActivityAdded }: ActivityFormPr
   const [markerLabel, setMarkerLabel] = useState('');
   const [markerTarget, setMarkerTarget] = useState<string>(''); // Target for marker (empty = no target)
   const [markers, setMarkers] = useState<ActivityMarker[]>([]);
-  
+
   // Scheduling state
   const [scheduleType, setScheduleType] = useState<ScheduleType>('daily');
   const [selectedDays, setSelectedDays] = useState<number[]>([0, 1, 2, 3, 4, 5, 6]); // All days by default
@@ -148,7 +148,7 @@ export default function ActivityForm({ userId, onActivityAdded }: ActivityFormPr
           {scheduleType === 'weekly' && (
             <div className="flex gap-0.5 mt-1 flex-wrap">
               {DAY_NAMES.map((day, index) => (
-                <button
+          <button
                   key={day}
                   type="button"
                   onClick={() => toggleDay(index)}
@@ -156,7 +156,7 @@ export default function ActivityForm({ userId, onActivityAdded }: ActivityFormPr
                   style={{ backgroundColor: selectedDays.includes(index) ? '#5D2E0A' : '#8B4513' }}
                 >
                   {day}
-                </button>
+          </button>
               ))}
             </div>
           )}

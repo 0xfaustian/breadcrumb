@@ -133,18 +133,31 @@ export const createDailyRecord = async (
   userId: string,
   activityMarkerId: string,
   date: Date,
-  completed: boolean = true
+  completed: boolean = true,
+  target?: number // Store the current target at time of completion
 ): Promise<DailyRecord> => {
   const dateString = formatDateLocal(date);
   
+  const insertData: {
+    user_id: string;
+    activity_marker_id: string;
+    date: string;
+    completed: boolean;
+    target?: number;
+  } = {
+    user_id: userId,
+    activity_marker_id: activityMarkerId,
+    date: dateString,
+    completed,
+  };
+  
+  if (target !== undefined) {
+    insertData.target = target;
+  }
+  
   const { data, error } = await supabase
     .from('daily_records')
-    .insert([{
-      user_id: userId,
-      activity_marker_id: activityMarkerId,
-      date: dateString,
-      completed,
-    }])
+    .insert([insertData])
     .select()
     .single();
   
@@ -154,9 +167,10 @@ export const createDailyRecord = async (
     id: data.id,
     userId: data.user_id,
     activityMarkerId: data.activity_marker_id,
-    dateString: data.date, // Store as string
-    date: new Date(data.date + 'T00:00:00'), // Parse with local timezone
+    dateString: data.date,
+    date: new Date(data.date + 'T00:00:00'),
     completed: data.completed,
+    target: data.target || undefined,
     completedAt: data.completed_at ? new Date(data.completed_at) : undefined,
     createdAt: new Date(data.created_at),
   };
@@ -210,6 +224,7 @@ export const getDailyRecords = async (
       activity_marker_id,
       date,
       completed,
+      target,
       completed_at,
       created_at
     `)
@@ -222,9 +237,10 @@ export const getDailyRecords = async (
     id: item.id,
     userId: item.user_id,
     activityMarkerId: item.activity_marker_id,
-    dateString: item.date, // Store as string for easy comparison
-    date: new Date(item.date + 'T00:00:00'), // Parse with local timezone
+    dateString: item.date,
+    date: new Date(item.date + 'T00:00:00'),
     completed: item.completed,
+    target: item.target || undefined,
     completedAt: item.completed_at ? new Date(item.completed_at) : undefined,
     createdAt: new Date(item.created_at),
   }));
@@ -246,6 +262,7 @@ export const getDailyRecordsForActivity = async (
       activity_marker_id,
       date,
       completed,
+      target,
       completed_at,
       created_at
     `)
@@ -262,6 +279,7 @@ export const getDailyRecordsForActivity = async (
     dateString: item.date,
     date: new Date(item.date + 'T00:00:00'),
     completed: item.completed,
+    target: item.target || undefined,
     completedAt: item.completed_at ? new Date(item.completed_at) : undefined,
     createdAt: new Date(item.created_at),
   }));

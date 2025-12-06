@@ -61,18 +61,18 @@ export default function Dashboard() {
 
       <main className="px-1 sm:px-2 py-1 sm:py-2">
         <div className="mb-1 sm:mb-2">
-          <ActivityForm
-            userId={user.id}
-            onActivityAdded={handleActivityAdded}
-          />
-        </div>
+            <ActivityForm
+              userId={user.id}
+              onActivityAdded={handleActivityAdded}
+            />
+          </div>
 
         <div className="mb-1 sm:mb-2">
           <label htmlFor="date-picker" className="block text-black mb-0.5 text-sm">Date:</label>
-          <input
-            type="date"
-            id="date-picker"
-            value={selectedDate.toISOString().split('T')[0]}
+            <input
+              type="date"
+              id="date-picker"
+              value={selectedDate.toISOString().split('T')[0]}
             onChange={(e) => {
               // Parse as local date to avoid timezone issues
               const [year, month, day] = e.target.value.split('-').map(Number);
@@ -80,10 +80,10 @@ export default function Dashboard() {
             }}
             className="px-2 py-1 text-black border-2 border-black text-sm"
             style={{ backgroundColor: '#A0522D' }}
-          />
-        </div>
+            />
+          </div>
 
-        <DailyBreadcrumbs userId={user.id} date={selectedDate} />
+          <DailyBreadcrumbs userId={user.id} date={selectedDate} />
       </main>
     </div>
   );

@@ -34,6 +34,7 @@ CREATE TABLE daily_records (
     activity_marker_id UUID REFERENCES activity_markers(id) ON DELETE CASCADE,
     date DATE NOT NULL,
     completed BOOLEAN DEFAULT FALSE,
+    target INTEGER,  -- Target at time of completion (preserved for historical accuracy)
     completed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );

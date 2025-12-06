@@ -52,6 +52,7 @@ CREATE TABLE daily_records (
     activity_marker_id UUID REFERENCES activity_markers(id) ON DELETE CASCADE,
     date DATE NOT NULL,
     completed BOOLEAN DEFAULT FALSE,
+    target INTEGER,  -- Target at time of completion (preserved for historical accuracy)
     completed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -120,6 +121,9 @@ ALTER TABLE activities ADD COLUMN IF NOT EXISTS schedule TEXT;
 -- Add is_default and target columns to activity_markers table
 ALTER TABLE activity_markers ADD COLUMN IF NOT EXISTS is_default BOOLEAN DEFAULT FALSE;
 ALTER TABLE activity_markers ADD COLUMN IF NOT EXISTS target INTEGER;
+
+-- Add target column to daily_records (stores target at time of completion)
+ALTER TABLE daily_records ADD COLUMN IF NOT EXISTS target INTEGER;
 ```
 
 ### Column Descriptions:
