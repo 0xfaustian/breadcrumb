@@ -73,7 +73,11 @@ export default function Dashboard() {
             type="date"
             id="date-picker"
             value={selectedDate.toISOString().split('T')[0]}
-            onChange={(e) => setSelectedDate(new Date(e.target.value))}
+            onChange={(e) => {
+              // Parse as local date to avoid timezone issues
+              const [year, month, day] = e.target.value.split('-').map(Number);
+              setSelectedDate(new Date(year, month - 1, day));
+            }}
             className="px-2 py-1 text-black border-2 border-black text-sm"
             style={{ backgroundColor: '#A0522D' }}
           />
