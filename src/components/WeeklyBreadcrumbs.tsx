@@ -52,7 +52,7 @@ export default function WeeklyBreadcrumbs({ userId, startDate }: WeeklyBreadcrum
   }, [userId, startDate, endDate]);
 
   // Generate the dates for the week
-  const weekDates = [];
+  const weekDates: Date[] = [];
   for (let i = 0; i < 7; i++) {
     const date = new Date(startDate);
     date.setDate(startDate.getDate() + i);
