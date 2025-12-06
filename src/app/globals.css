@@ -1,8 +1,16 @@
+/* Terminal/Pixel Font */
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap');
+
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #8B4513;
+  --foreground: #1a0f00;
+  --dark-brown: #5D2E0A;
+  --brown: #8B4513;
+  --light-brown: #A0522D;
+  --text-brown: #3D2817;
+  --text-black: #000000;
 }
 
 @theme inline {
@@ -12,15 +20,49 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
   background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  color: var(--text-black);
+  font-family: 'VT323', 'Courier New', monospace;
+  font-size: 20px;
+  line-height: 1.4;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Press Start 2P', 'Courier New', monospace;
+  color: var(--text-black);
+  font-weight: normal;
+}
+
+button, input, select, textarea {
+  font-family: 'VT323', 'Courier New', monospace;
+}
+
+/* Checkbox styling */
+input[type="checkbox"] {
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  width: 2rem;
+  height: 2rem;
+  border: 2px solid #000;
+  position: relative;
+  display: inline-block;
+}
+
+input[type="checkbox"]:checked {
+  background-color: #000 !important;
+}
+
+input[type="checkbox"]:checked::after {
+  content: '✓';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #A0522D;
+  font-size: 1.2rem;
+  font-weight: bold;
+  display: block;
 }
