@@ -46,6 +46,15 @@ export const getActivities = async (userId: string): Promise<Activity[]> => {
   }));
 };
 
+export const deleteActivity = async (activityId: string): Promise<void> => {
+  const { error } = await supabase
+    .from('activities')
+    .delete()
+    .eq('id', activityId);
+  
+  if (error) throw error;
+};
+
 // Activity Marker operations
 export const createActivityMarker = async (
   activityId: string, 

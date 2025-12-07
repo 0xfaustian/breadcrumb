@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Activity, ActivityMarker, DailyRecord } from '@/types';
-import { getActivities, getActivityMarkers, getDailyRecords, createDailyRecord, updateDailyRecord } from '@/lib/activityService';
+import { getActivities, getActivityMarkers, getDailyRecords, createDailyRecord, updateDailyRecord, deleteActivity } from '@/lib/activityService';
 
 interface DailyBreadcrumbsProps {
   userId: string;
@@ -78,6 +78,20 @@ export default function DailyBreadcrumbs({ userId, date }: DailyBreadcrumbsProps
     }
   };
 
+  const handleDeleteActivity = async (activityId: string, activityName: string) => {
+    if (!confirm(`Delete "${activityName}"? This will remove all markers and records for this activity.`)) {
+      return;
+    }
+    
+    try {
+      await deleteActivity(activityId);
+      setActivities(prev => prev.filter(a => a.id !== activityId));
+    } catch (error) {
+      console.error('Error deleting activity:', error);
+      alert('Failed to delete activity');
+    }
+  };
+
   if (loading) {
     return <div className="text-black py-2">Loading...</div>;
   }
@@ -96,13 +110,23 @@ export default function DailyBreadcrumbs({ userId, date }: DailyBreadcrumbsProps
             <div key={activity.id} className="p-1 border-2 border-black mb-1" style={{ backgroundColor: '#8B4513' }}>
               <div className="flex items-center justify-between mb-1 flex-wrap gap-1">
                 <h3 className="text-black font-bold text-sm sm:text-base">{activity.name} 🍞</h3>
-                <a
-                  href={`/activity?id=${activity.id}`}
-                  className="text-black border-2 border-black px-2 py-1 text-sm sm:text-base"
-                  style={{ backgroundColor: '#A0522D' }}
-                >
-                  Solo View
-                </a>
+                <div className="flex items-center gap-1">
+                  <a
+                    href={`/activity?id=${activity.id}`}
+                    className="text-black border-2 border-black px-2 py-1 text-sm sm:text-base"
+                    style={{ backgroundColor: '#A0522D' }}
+                  >
+                    Solo View
+                  </a>
+                  <button
+                    onClick={() => handleDeleteActivity(activity.id, activity.name)}
+                    className="text-black border-2 border-black px-2 py-1 text-sm sm:text-base font-bold"
+                    style={{ backgroundColor: '#8B0000' }}
+                    title="Delete activity"
+                  >
+                    ✕
+                  </button>
+                </div>
               </div>
 
               {activityMarkers[activity.id] && activityMarkers[activity.id].length > 0 ? (
