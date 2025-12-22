@@ -279,6 +279,41 @@ export default function ActivityView() {
     }
   };
 
+  // Keyboard shortcuts: 'm' to add check, 'x' to remove check for first marker
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't trigger when typing in input fields
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+
+      // Get the first visible marker
+      const visibleMarkersList = markers.filter(m => visibleMarkers.has(m.id));
+      if (visibleMarkersList.length === 0) return;
+      
+      const firstMarker = visibleMarkersList[0];
+      const checkedCount = getCheckedCount(firstMarker.id);
+      const checkboxCount = checkboxCounts[firstMarker.id] || 10;
+
+      if (e.key === 'm' || e.key === 'M') {
+        e.preventDefault();
+        // Add a check (click the next unchecked box)
+        if (checkedCount < checkboxCount) {
+          handleCheckboxToggle(firstMarker.id, checkedCount);
+        }
+      } else if (e.key === 'x' || e.key === 'X') {
+        e.preventDefault();
+        // Remove a check (uncheck the last checked box)
+        if (checkedCount > 0) {
+          handleCheckboxToggle(firstMarker.id, checkedCount - 1);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [markers, visibleMarkers, checkboxCounts, dailyRecords, selectedDate, user]);
+
   if (!user) {
     return null;
   }
